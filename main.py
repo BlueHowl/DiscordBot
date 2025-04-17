@@ -112,7 +112,7 @@ async def send_scheduled_message(time_str):
         message_template = "🤖 {role} It's working! 🤖"
     
     # Config channel
-    for channel_id, config in channels_test_config.items():
+    for channel_id, config in channels_config.items():
         try:
             channel = bot.get_channel(channel_id)
             if not channel:
@@ -259,7 +259,7 @@ async def on_ready():
     logging.info(f'Bot connected as {bot.user}')
     channel_test = bot.get_channel(CHANNEL_TEST_ID)
     if channel_test:
-        await channel_test.send(f"🤖 Prout Prout Prout Mehdi Prout Prout Prout 🤖")  # Mentionner l'utilisateur avec son ID
+        await channel_test.send(f"🤖 Yeah I'm still workin' no worries 🤖")  # Mentionner l'utilisateur avec son ID
     else:
         logging.error("Le canal spécifié n'a pas été trouvé (pour test).")
     # Schedule messages
