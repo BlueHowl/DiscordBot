@@ -15,6 +15,10 @@ CHANNEL_ID_AI = int(os.getenv("CHANNEL_ID_AI"))
 CHANNEL_ID_WEBDEV = int(os.getenv("CHANNEL_ID_WEBDEV"))
 CHANNEL_TEST_ID = int(os.getenv("CHANNEL_TEST_ID"))
 GEMINI_API=os.getenv("GEMINI_API")
+Ali=os.getenv("Ali")
+Robin=os.getenv("Robin")
+Elsa=os.getenv("Elsa")
+Mehdi=os.getenv("Mehdi")
 
 #configure gemini
 genai.configure(api_key=GEMINI_API)  # Ton token API
@@ -62,77 +66,72 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 scheduler = AsyncIOScheduler(timezone='Europe/Brussels')  # Change as needed
 
 # List of check-in and check-out times
-checkin_times = ["09:00", "13:30"]
+checkin_times = ["08:55", "13:25"]
 checkout_times = ["12:30", "17:00"]
 break_time = ["11:00", "15:00"]
 lunch_time = ["12:30"]
 
 # List of birthdays (user ID and birthday date)
 birthdays = {
-    "1348976305013522483": "2025-05-25"
+    Ali: "2025-05-25",
+    Mehdi: "2025-10-21"
 }
 
-# Function to send scheduled messages
-def send_scheduled_message(time_str):
-    hour, minute = map(int, time_str.split(":"))
+async def send_scheduled_message(time_str):
 
-    logging.info(f"Scheduling message for {time_str}...")
-    scheduler.add_job(
-        send_message_job,
-        'cron',
-        hour=hour,
-        minute=minute,
-        args=[time_str],
-        id=f"job_{time_str.replace(':', '_')}",
-        replace_existing=True
-    )
-
-async def send_message_job(time_str):
-    today = datetime.now(pytz.timezone('Europe/Brussels')).weekday()
-    if today >= 5:  # 5 = samedi, 6 = dimanche
+    if datetime.now(pytz.timezone('Europe/Brussels')).weekday() >= 5:
         logging.info("😴 Week-end detected, no message sent.")
         return
 
-    try:
-        logging.info(f"Trying to send scheduled message at {time_str}")
-        channel_ids = [CHANNEL_ID_WEBDEV, CHANNEL_ID_AI]
+    logging.info(f"Trying to send scheduled message at {time_str}")
+    
+    channels_config = {
+        CHANNEL_ID_WEBDEV: {"role_name": "Hamilton 10", "moodle_link": "https://moodle.becode.org/mod/attendance/view.php?id=1217"},
+        CHANNEL_ID_AI: {"role_name": "Thomas5", "moodle_link": "https://moodle.becode.org/mod/attendance/view.php?id=1433"}
+    }
 
-        for channel_id in channel_ids:
+    channels_test_config = {
+        CHANNEL_TEST_ID: {"role_name": "prout", "moodle_link": "https://mehdi-godefroid.com" }
+    }
+    
+    # Message config
+    message_template = ""
+    if time_str in checkin_times:
+        message_template = "🤖 {role} bip boup bip boup CHECK-IN 🤖 \nMoodle link : {link}"
+
+        if time_str in lunch_time:
+            message_template += "\n 🤖 It's LUNCH-TIME 🌯 🤖"
+
+    elif time_str in checkout_times:
+        message_template = "🤖 {role} bip boup bip boup CHECK-OUT 🤖 \nMoodle link : {link}"
+
+    elif time_str in break_time:
+        message_template = "🤖 {role} bip boup bip boup BREAK-TIME ☕️☕️ 🤖"
+        
+    else:
+        message_template = "🤖 {role} It's working! 🤖"
+    
+    # Config channel
+    for channel_id, config in channels_test_config.items():
+        try:
             channel = bot.get_channel(channel_id)
             if not channel:
                 logging.error(f"❌ Channel with ID {channel_id} not found.")
                 continue
-
-            guild = channel.guild
-            if channel_id == CHANNEL_ID_AI: 
-                role = discord.utils.get(guild.roles, name="Thomas5") if guild else None
-                moodle_link = "https://moodle.becode.org/mod/attendance/view.php?id=1433"
-            else:
-                role = discord.utils.get(guild.roles, name="Hamilton 10") if guild else None
-                moodle_link = "https://moodle.becode.org/mod/attendance/view.php?id=1217"
-
-            if role:
-                role_mention = role.mention
-            else:
-                logging.warning(f"Role not found in {channel.name}")
-                role_mention = ""
                 
-            if time_str in checkin_times:
-                message = f"🤖 {role_mention} bip boup bip boup CHECK-IN 🤖 \n Moodle link : {moodle_link}"
-                if time_str in lunch_time:
-                    message += f"\n 🤖 It's LUNCH-TIME 🌯 🤖"
-            elif time_str in checkout_times:
-                message = f"🤖 {role_mention} bip boup bip boup CHECK-OUT 🤖 \n Moodle link : {moodle_link}"
-            elif time_str in break_time:
-                message = f"🤖 {role_mention} bip boup bip boup BREAK-TIME ☕️☕️ 🤖"
-            else:
-                message = f"🤖 {role_mention} It's working! 🤖"
-
+            # get rOle
+            role = discord.utils.get(channel.guild.roles, name=config["role_name"]) if channel.guild else None
+            role_mention = role.mention if role else ""
+            if not role:
+                logging.warning(f"Role not found in {channel.name}")
+            
+            # Format
+            message = message_template.format(role=role_mention, link=config["moodle_link"])
             await channel.send(message)
             logging.info(f"✅ Message sent to {channel.name} ({channel.id})")
-
-    except Exception as e:
-        logging.error(f"❌ Error sending scheduled message: {e}")
+            
+        except Exception as e:
+            logging.error(f"❌ Error sending message to channel {channel_id}: {e}")
 
 # Function to check birthdays and send messages
 @tasks.loop(hours=24)
@@ -211,7 +210,7 @@ async def on_message(message):
         logging.info(f"Private message received from {message.author}: {message.content}")
         channel_test = bot.get_channel(CHANNEL_TEST_ID)
         if channel_test:
-            await channel_test.send(f"🤖 <@178464430424719360> <@1000897671118213201> <@1215286299364294668> Private message received from {message.author}: {message.content}")  # Mentionner l'utilisateur avec son ID
+            await channel_test.send(f"🤖 <@{Mehdi}> <@{Robin}> <@{Elsa}> Private message received from {message.author}: {message.content}")  # Mentionner l'utilisateur avec son ID
         else:
             logging.error("Le canal spécifié n'a pas été trouvé (pour test).")
         # Reply with the current time
@@ -260,7 +259,7 @@ async def on_ready():
     logging.info(f'Bot connected as {bot.user}')
     channel_test = bot.get_channel(CHANNEL_TEST_ID)
     if channel_test:
-        await channel_test.send(f"🤖 <@178464430424719360> <@1000897671118213201> <@1215286299364294668> Hello, I'm working  🤖")  # Mentionner l'utilisateur avec son ID
+        await channel_test.send(f"🤖 Prout Prout Prout Mehdi Prout Prout Prout 🤖")  # Mentionner l'utilisateur avec son ID
     else:
         logging.error("Le canal spécifié n'a pas été trouvé (pour test).")
     # Schedule messages
