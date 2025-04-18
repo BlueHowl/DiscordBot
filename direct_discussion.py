@@ -10,7 +10,7 @@ import pytz  # for timezone
 # Charger les variables d'environnement depuis le fichier .env
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
-CHANNEL_ID = int(os.getenv("CHANNEL_ID_WEBDEV"))
+CHANNEL_ID = int(os.getenv("CHANNEL_ID_AI"))
 
 # Configurer les logs
 logging.basicConfig(level=logging.INFO)
@@ -40,7 +40,7 @@ async def on_ready():
         role_mention = ""
 
     if channel:
-        await channel.send(f"🤖 {role_mention} Hello I'm CheckinBot  🤖")  # Mentionner l'utilisateur avec son ID
+        await channel.send(f"🤖 {role_mention} Hello I'm CheckinBot Don't Forget to checkin, sorry for being today 🤖")  # Mentionner l'utilisateur avec son ID
     else:
         logging.error("Le canal spécifié n'a pas été trouvé.")
 

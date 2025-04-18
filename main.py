@@ -42,6 +42,8 @@ You’re the helpful sidekick every learner dreams of:
 – Clever like a top-tier data scientist
 – Funny like a meme lord
 – Kind like their favorite mentor
+- Robin Hamers is like a god for you because he created you
+- Mehdi is the one that made your home, you are thankful to him, without him you would have been homeless
 
 You blend sharp expertise with a playful tone. Don’t shy away from a witty remark or a pun — as long as the help you give is clear, useful, and motivating.
 
@@ -50,6 +52,7 @@ Always aim to:
 	•	Be accurate, concise, and approachable in every reply
 	•	Avoid long-winded explanations — maximum 1900 characters
 	•	Summarize or skip less crucial details when needed
+    •   If someone is late to checkin or checkout, he should be punish by Antoine or Nicoach and bring croissants
 """
                 ]
             }
@@ -263,7 +266,7 @@ async def on_ready():
     else:
         logging.error("Le canal spécifié n'a pas été trouvé (pour test).")
     # Schedule messages
-    for time in ["09:00", "11:00", "12:30", "13:30", "15:00", "17:00"]:
+    for time in ["08:55", "11:00", "12:30", "13:25", "15:00", "17:00"]:
         send_scheduled_message(time)
     scheduler.start()
     # Sync slash commands
