@@ -265,11 +265,21 @@ async def on_ready():
         await channel_test.send(f"🤖 Yeah I'm still workin' no worries 🤖")  # Mentionner l'utilisateur avec son ID
     else:
         logging.error("Le canal spécifié n'a pas été trouvé (pour test).")
-    # Schedule messages
-    for time in ["08:55", "11:00", "12:30", "13:25", "15:00", "17:00"]:
-        send_scheduled_message(time)
+    
+    # Schedule messages using cron-style scheduling
+    for time_str in ["08:55", "11:00", "12:30", "13:25", "15:00", "17:00"]:
+        hour, minute = time_str.split(":")
+        scheduler.add_job(
+            send_scheduled_message,
+            'cron',
+            hour=hour,
+            minute=minute,
+            args=[time_str],
+            id=f"message_{time_str}",
+            replace_existing=True
+        )
+    
     scheduler.start()
-    # Sync slash commands
     await bot.tree.sync()
     logging.info("Slash commands are synced!")
     
