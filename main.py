@@ -7,6 +7,7 @@ import logging
 from datetime import datetime, timedelta
 import pytz  # for timezone
 import google.generativeai as genai
+from sheets_utils import get_techtalk_message_if_today
 
 # Load environment variables from .env file
 load_dotenv()
@@ -19,7 +20,8 @@ Ali=os.getenv("Ali")
 Robin=os.getenv("Robin")
 Elsa=os.getenv("Elsa")
 Mehdi=os.getenv("Mehdi")
-
+json_keyfile_path = "discordbot.json"
+sheet_url = "https://docs.google.com/spreadsheets/d/1FLktNFlFQCHLaEnw_o_0UJDcXnpYxg2ynoZeq_b-iBQ/edit?gid=0#gid=0"
 #configure gemini
 genai.configure(api_key=GEMINI_API)  # Ton token API
 model = genai.GenerativeModel("gemini-2.0-flash")
@@ -69,8 +71,9 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 scheduler = AsyncIOScheduler(timezone='Europe/Brussels')  # Change as needed
 
 # List of check-in and check-out times
-checkin_times = ["08:55", "13:25"]
+checkin_times = ["08:55", "13:34"]
 checkout_times = ["12:30", "17:00"]
+techtalk_time = "13:34"
 break_time = ["11:00", "15:00"]
 lunch_time = ["12:30"]
 
@@ -111,8 +114,8 @@ async def send_scheduled_message(time_str):
     elif time_str in break_time:
         message_template = "🤖 {role} bip boup bip boup BREAK-TIME ☕️☕️ 🤖"
         
-    else:
-        message_template = "🤖 {role} It's working! 🤖"
+    #else:
+        #message_template = "🤖 {role} It's working! 🤖"
     
     # Config channel
     for channel_id, config in channels_config.items():
@@ -130,6 +133,14 @@ async def send_scheduled_message(time_str):
             
             # Format
             message = message_template.format(role=role_mention, link=config["moodle_link"])
+            if message:
+                logging.info("message empty")
+            else:
+                message = ""
+            if channel_id == CHANNEL_ID_AI and time_str in techtalk_time:
+                 techTalkMessage = get_techtalk_message_if_today(json_keyfile_path, sheet_url)
+                 logging.info(techTalkMessage)
+                 message += techTalkMessage
             await channel.send(message)
             logging.info(f"✅ Message sent to {channel.name} ({channel.id})")
             
@@ -267,7 +278,7 @@ async def on_ready():
         logging.error("Le canal spécifié n'a pas été trouvé (pour test).")
     
     # Schedule messages using cron-style scheduling
-    for time_str in ["08:55", "11:00", "12:30", "13:25", "15:00", "17:00"]:
+    for time_str in ["08:55", "11:00", "12:30", "13:34", "15:00", "17:00"]:
         hour, minute = time_str.split(":")
         scheduler.add_job(
             send_scheduled_message,
