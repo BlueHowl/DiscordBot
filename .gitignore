@@ -7,4 +7,4 @@ __pycache__/
 .vscode/
 *.log
 *.sqlite3
-discordbot.jsondiscordbot.json
+discordbot.json
