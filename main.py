@@ -8,6 +8,7 @@ from datetime import datetime
 import pytz  # for timezone
 import google.generativeai as genai
 from sheets_utils import get_techtalk_message_if_today
+from calendar_utils import get_birthday_message_if_today, get_upcoming_birthdays
 import json
 
 # Load environment variables from .env file
@@ -24,6 +25,8 @@ Elsa=os.getenv("Elsa")
 Mehdi=os.getenv("Mehdi")
 json_keyfile_path = "discordbot.json"
 sheet_url = "https://docs.google.com/spreadsheets/d/1FLktNFlFQCHLaEnw_o_0UJDcXnpYxg2ynoZeq_b-iBQ/edit?gid=0#gid=0"
+ical_url = "https://calendar.google.com/calendar/ical/c_702b545902f6d85b61594f7a0105d1de9cd94496bd643c6449641761047313bc%40group.calendar.google.com/public/basic.ics"
+
 #configure gemini
 genai.configure(api_key=GEMINI_API)  # Ton token API
 model = genai.GenerativeModel("gemini-2.0-flash-lite")
@@ -132,12 +135,6 @@ techtalk_time = "13:25"
 break_time = ["11:00", "15:00"]
 lunch_time = ["12:30"]
 
-# List of birthdays (user ID and birthday date)
-birthdays = {
-    Ali: "2025-05-25",
-    Mehdi: "2025-10-21"
-}
-
 async def send_scheduled_message(time_str):
 
     if datetime.now(pytz.timezone('Europe/Brussels')).weekday() >= 5:
@@ -196,30 +193,54 @@ async def send_scheduled_message(time_str):
                  techTalkMessage = get_techtalk_message_if_today(json_keyfile_path, sheet_url)
                  logging.info(techTalkMessage)
                  message += techTalkMessage
+            
+            # Check for calendar birthdays in morning message
+            if time_str == "09:00":  # Add birthday check to morning message
+                try:
+                    calendar_birthday_message = get_birthday_message_if_today(ical_url)
+                    if calendar_birthday_message:
+                        message += "\n\n" + calendar_birthday_message
+                        logging.info("Added calendar birthday message to scheduled message")
+                except Exception as e:
+                    logging.error(f"Error adding calendar birthday to scheduled message: {e}")
+            
             await channel.send(message)
             logging.info(f"✅ Message sent to {channel.name} ({channel.id})")
             
         except Exception as e:
             logging.error(f"❌ Error sending message to channel {channel_id}: {e}")
 
-# Function to check birthdays and send messages
-@tasks.loop(hours=24)
-async def check_birthday():
-    current_time = datetime.now(pytz.timezone('Europe/Brussels'))
-    current_date = current_time.strftime("%Y-%m-%d")
-    
-    # Loop through birthdays and check if today is the day
-    for user_id, birthday in birthdays.items():
-        if current_date == birthday:
-            user = await bot.fetch_user(user_id)
-            await user.send(f"🎉 Happy Birthday {user.name}! 🎂")
-            logging.info(f"Sent birthday wish to {user.name}!")
-
 # Slash command /time to display the current time
 @bot.tree.command(name="time", description="Displays the current time")
 async def time(interaction: discord.Interaction):
     current_time = datetime.now(pytz.timezone('Europe/Brussels')).strftime("%H:%M:%S")
     await interaction.response.send_message(f"The current time is {current_time}.")
+
+# Slash command /happy-birthdays to check for today's birthdays
+@bot.tree.command(name="happy-birthdays", description="Check for birthdays today")
+async def birthdays_today(interaction: discord.Interaction):
+    try:
+        calendar_birthday_message = get_birthday_message_if_today(ical_url)
+        if calendar_birthday_message:
+            await interaction.response.send_message(calendar_birthday_message)
+        else:
+            await interaction.response.send_message("🎂 No birthdays today!")
+    except Exception as e:
+        logging.error(f"Error checking today's birthdays: {e}")
+        await interaction.response.send_message("❌ Error checking birthdays. Please try again later.")
+
+# Slash command /next-birthdays to check for upcoming birthdays
+@bot.tree.command(name="next-birthdays", description="Check for upcoming birthdays in the next 7 days")
+async def upcoming_birthdays(interaction: discord.Interaction):
+    try:
+        upcoming_message = get_upcoming_birthdays(ical_url, days_ahead=7)
+        if upcoming_message:
+            await interaction.response.send_message(upcoming_message)
+        else:
+            await interaction.response.send_message("📅 No upcoming birthdays in the next 7 days!")
+    except Exception as e:
+        logging.error(f"Error checking upcoming birthdays: {e}")
+        await interaction.response.send_message("❌ Error checking upcoming birthdays. Please try again later.")
 
 # Function to calculate the time remaining until the next check-in or check-out
 def time_until_next_event():

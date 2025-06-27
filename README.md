@@ -44,9 +44,19 @@ Before running the bot, ensure you have the following dependencies:
 
 You can install the necessary dependencies using `pip install -r requirements.txt`
 
+### Build project
+
+You can build the project using docker by building the dockerfile using `docker build -t discord-bot .`
+
+To run your newly built container you can use (e.g : `docker run -d --name discord-bot-container discord-bot  `)
+
 ## Commands
 	•	/time: Displays the current time.
 	•	The bot will respond to messages that mention it, answering questions about time and providing other helpful information related to learning at Becode.
+
+  • `/happy-birthdays` - Check for birthdays today
+
+  • `/next-birthdays` - Check for birthdays in the next 7 days
 
 ## Customizations
 
