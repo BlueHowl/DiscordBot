@@ -4,13 +4,11 @@ import discord
 from discord.ext import tasks, commands
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 import pytz  # for timezone
 import google.generativeai as genai
 from sheets_utils import get_techtalk_message_if_today
 import json
-import signal
-import asyncio
 
 # Load environment variables from .env file
 load_dotenv()
@@ -28,7 +26,7 @@ json_keyfile_path = "discordbot.json"
 sheet_url = "https://docs.google.com/spreadsheets/d/1FLktNFlFQCHLaEnw_o_0UJDcXnpYxg2ynoZeq_b-iBQ/edit?gid=0#gid=0"
 #configure gemini
 genai.configure(api_key=GEMINI_API)  # Ton token API
-model = genai.GenerativeModel("gemini-2.0-flash")
+model = genai.GenerativeModel("gemini-2.0-flash-lite")
 
 user_chats = {}
 
