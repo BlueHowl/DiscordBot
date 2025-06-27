@@ -185,14 +185,18 @@ async def send_scheduled_message(time_str):
             
             # Format
             message = message_template.format(role=role_mention, link=config["moodle_link"])
-            if message:
+            if not message:
                 logging.info("message empty")
-            else:
                 message = ""
-            if channel_id == CHANNEL_ID_AI and time_str in techtalk_time:
-                 techTalkMessage = get_techtalk_message_if_today(json_keyfile_path, sheet_url)
-                 logging.info(techTalkMessage)
-                 message += techTalkMessage
+            if channel_id == CHANNEL_ID_AI and time_str == techtalk_time:
+                try:
+                    techTalkMessage = get_techtalk_message_if_today(json_keyfile_path, sheet_url)
+                    logging.info(techTalkMessage)
+                    if techTalkMessage:
+                        message += "\n\n" + techTalkMessage
+                except Exception as e:
+                    logging.error(f"Error fetching tech talk for scheduled message: {e}")
+                    message += "\n\n❌ Error fetching today's tech talk details."
             
             # Check for calendar birthdays in morning message
             if time_str == "09:00":  # Add birthday check to morning message
@@ -216,31 +220,53 @@ async def time(interaction: discord.Interaction):
     current_time = datetime.now(pytz.timezone('Europe/Brussels')).strftime("%H:%M:%S")
     await interaction.response.send_message(f"The current time is {current_time}.")
 
+# Slash command /techtalk to get today's tech talk
+@bot.tree.command(name="techtalk", description="Get today's tech talk details")
+async def techtalk_today(interaction: discord.Interaction):
+    # Defer the response immediately to prevent timeout
+    await interaction.response.defer()
+    
+    try:
+        techtalk_message = get_techtalk_message_if_today(json_keyfile_path, sheet_url)
+        if techtalk_message:
+            await interaction.followup.send(techtalk_message)
+        else:
+            await interaction.followup.send("📅 No tech talk scheduled for today!")
+    except Exception as e:
+        logging.error(f"Error fetching tech talk: {e}")
+        await interaction.followup.send("❌ Error fetching tech talk. Please try again later.")
+
 # Slash command /happy-birthdays to check for today's birthdays
 @bot.tree.command(name="happy-birthdays", description="Check for birthdays today")
 async def birthdays_today(interaction: discord.Interaction):
+    # Defer the response immediately to prevent timeout
+    await interaction.response.defer()
+    
     try:
         calendar_birthday_message = get_birthday_message_if_today(ical_url)
         if calendar_birthday_message:
-            await interaction.response.send_message(calendar_birthday_message)
+            await interaction.followup.send(calendar_birthday_message)
         else:
-            await interaction.response.send_message("🎂 No birthdays today!")
+            await interaction.followup.send("🎂 No birthdays today!")
     except Exception as e:
         logging.error(f"Error checking today's birthdays: {e}")
-        await interaction.response.send_message("❌ Error checking birthdays. Please try again later.")
+        await interaction.followup.send("❌ Error checking birthdays. Please try again later.")
 
 # Slash command /next-birthdays to check for upcoming birthdays
 @bot.tree.command(name="next-birthdays", description="Check for upcoming birthdays in the next 7 days")
 async def upcoming_birthdays(interaction: discord.Interaction):
+    # Defer the response immediately to prevent timeout
+    await interaction.response.defer()
+    
     try:
         upcoming_message = get_upcoming_birthdays(ical_url, days_ahead=7)
         if upcoming_message:
-            await interaction.response.send_message(upcoming_message)
+            await interaction.followup.send(upcoming_message)
         else:
-            await interaction.response.send_message("📅 No upcoming birthdays in the next 7 days!")
+            await interaction.followup.send("📅 No upcoming birthdays in the next 7 days!")
     except Exception as e:
         logging.error(f"Error checking upcoming birthdays: {e}")
-        await interaction.response.send_message("❌ Error checking upcoming birthdays. Please try again later.")
+        await interaction.followup.send("❌ Error checking upcoming birthdays. Please try again later.")
 
 # Function to calculate the time remaining until the next check-in or check-out
 def time_until_next_event():
