@@ -42,7 +42,7 @@ Before running the bot, ensure you have the following dependencies:
 
 ### Install dependencies
 
-You can install the necessary dependencies using `pip -r requirements.txt
+You can install the necessary dependencies using `pip install -r requirements.txt`
 
 ## Commands
 	•	/time: Displays the current time.
