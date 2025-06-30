@@ -48,7 +48,7 @@ You can install the necessary dependencies using `pip install -r requirements.tx
 
 You can build the project using docker by building the dockerfile using `docker build -t discord-bot .`
 
-To run your newly built container you can use (e.g : `docker run -d --name discord-bot-container discord-bot  `)
+To run your newly built container you can use (e.g : `docker run -d --name discord-bot-container discord-bot`)
 
 ## Commands
 	•	/time: Displays the current time.

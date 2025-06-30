@@ -443,6 +443,145 @@ def get_upcoming_workshops(ical_url, days_ahead=7):
         return ""
 
 
+def is_on_site_today(ical_url):
+    """
+    Check iCal calendar to see if today is marked as "On Site".
+    
+    Args:
+        ical_url (str): URL to the iCal calendar feed
+    
+    Returns:
+        bool: True if today is marked as "On Site", False otherwise
+    """
+    try:
+        # Get today's date
+        today = datetime.now().date()
+        print(f"Checking if today ({today}) is marked as On Site")
+        
+        # Fetch the iCal data
+        response = requests.get(ical_url)
+        response.raise_for_status()
+        
+        # Parse the iCal data
+        calendar = Calendar.from_ical(response.content)
+        
+        for component in calendar.walk():
+            if component.name == "VEVENT":
+                # Get event details
+                summary = str(component.get('summary', ''))
+                description = str(component.get('description', ''))
+                start_date = component.get('dtstart')
+                
+                # Check if it's an "On Site" event
+                if ('on site' in summary.lower() or 'on site' in description.lower() or 
+                    'onsite' in summary.lower() or 'onsite' in description.lower()):
+                    
+                    # Handle different date formats
+                    event_date = None
+                    if start_date:
+                        if hasattr(start_date.dt, 'date'):
+                            event_date = start_date.dt.date()
+                        elif hasattr(start_date.dt, 'year'):
+                            event_date = start_date.dt
+                        else:
+                            event_date = start_date.dt
+                    
+                    # Check if it's today
+                    if event_date and event_date == today:
+                        print(f"Found 'On Site' event for today: {summary}")
+                        return True
+        
+        print("No 'On Site' event found for today")
+        return False
+        
+    except requests.RequestException as error:
+        print(f"Error fetching calendar data: {error}")
+        logging.error(f"Error fetching calendar data: {error}")
+        return False
+    except Exception as error:
+        print(f"An unexpected error occurred: {error}")
+        logging.error(f"An unexpected error occurred: {error}")
+        return False
+
+
+def is_at_home_today(ical_url):
+    """
+    Check iCal calendar to see if today is marked as "At home".
+    
+    Args:
+        ical_url (str): URL to the iCal calendar feed
+    
+    Returns:
+        bool: True if today is marked as "At home", False otherwise
+    """
+    try:
+        # Get today's date
+        today = datetime.now().date()
+        print(f"Checking if today ({today}) is marked as At home")
+        
+        # Fetch the iCal data
+        response = requests.get(ical_url)
+        response.raise_for_status()
+        
+        # Parse the iCal data
+        calendar = Calendar.from_ical(response.content)
+        
+        for component in calendar.walk():
+            if component.name == "VEVENT":
+                # Get event details
+                summary = str(component.get('summary', ''))
+                description = str(component.get('description', ''))
+                start_date = component.get('dtstart')
+                
+                # Check if it's an "At home" event
+                if ('at home' in summary.lower() or 'at home' in description.lower() or 
+                    'athome' in summary.lower() or 'from home' in summary.lower() or
+                    'remote' in summary.lower()):
+                    
+                    # Handle different date formats
+                    event_date = None
+                    if start_date:
+                        if hasattr(start_date.dt, 'date'):
+                            event_date = start_date.dt.date()
+                        elif hasattr(start_date.dt, 'year'):
+                            event_date = start_date.dt
+                        else:
+                            event_date = start_date.dt
+                    
+                    # Check if it's today
+                    if event_date and event_date == today:
+                        print(f"Found 'At home' event for today: {summary}")
+                        return True
+        
+        print("No 'At home' event found for today")
+        return False
+        
+    except requests.RequestException as error:
+        print(f"Error fetching calendar data: {error}")
+        logging.error(f"Error fetching calendar data: {error}")
+        return False
+    except Exception as error:
+        print(f"An unexpected error occurred: {error}")
+        logging.error(f"An unexpected error occurred: {error}")
+        return False
+
+
+def is_class_day_today(ical_url):
+    """
+    Check iCal calendar to see if today is a class day (either "On Site" or "At home").
+    
+    Args:
+        ical_url (str): URL to the iCal calendar feed
+    
+    Returns:
+        bool: True if today has either "On Site" or "At home" event, False otherwise
+    """
+    is_onsite = is_on_site_today(ical_url)
+    is_athome = is_at_home_today(ical_url)
+
+    return is_onsite or is_athome
+
+
 if __name__ == "__main__":
     ical_url = "https://calendar.google.com/calendar/ical/c_702b545902f6d85b61594f7a0105d1de9cd94496bd643c6449641761047313bc%40group.calendar.google.com/public/basic.ics"
     
@@ -488,5 +627,29 @@ if __name__ == "__main__":
             print(upcoming_workshop_message)
         else:
             print("No upcoming workshops in the next 7 days.")
+        
+        # Check if today is marked as "On Site"
+        print("\n=== CHECKING IF TODAY IS ON SITE ===")
+        on_site_today = is_on_site_today(ical_url)
+        if on_site_today:
+            print("Today is marked as On Site.")
+        else:
+            print("Today is not marked as On Site.")
+        
+        # Check if today is marked as "At home"
+        print("\n=== CHECKING IF TODAY IS AT HOME ===")
+        at_home_today = is_at_home_today(ical_url)
+        if at_home_today:
+            print("Today is marked as At home.")
+        else:
+            print("Today is not marked as At home.")
+        
+        # Check if today is a class day
+        print("\n=== CHECKING IF TODAY IS A CLASS DAY ===")
+        class_day_today = is_class_day_today(ical_url)
+        if class_day_today:
+            print("Today is a class day (On Site or At home).")
+        else:
+            print("Today is not a class day.")
     else:
         print("No events found or failed to fetch calendar data.")

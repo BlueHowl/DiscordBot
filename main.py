@@ -8,7 +8,7 @@ from datetime import datetime
 import pytz  # for timezone
 import google.generativeai as genai
 from sheets_utils import get_techtalk_message_if_today
-from calendar_utils import get_birthday_message_if_today, get_upcoming_birthdays, get_workshop_message_if_today, get_upcoming_workshops
+from calendar_utils import get_birthday_message_if_today, get_upcoming_birthdays, get_workshop_message_if_today, get_upcoming_workshops, is_on_site_today, is_at_home_today, is_class_day_today
 import json
 
 # Load environment variables from .env file
@@ -140,6 +140,12 @@ async def send_scheduled_message(time_str):
     if datetime.now(pytz.timezone('Europe/Brussels')).weekday() >= 5:
         logging.info("😴 Week-end detected, no message sent.")
         return
+    
+    # Check if today is a class day (On Site or At home)
+    if not is_class_day_today(ical_url):
+        logging.info("📅 No class today (neither On Site nor At home), no message sent.")
+        return
+    
 
     logging.info(f"Trying to send scheduled message at {time_str}")
     
@@ -198,9 +204,17 @@ async def send_scheduled_message(time_str):
                     logging.error(f"Error fetching tech talk for scheduled message: {e}")
                     message += "\n\n❌ Error fetching today's tech talk details."
             
-            # Check for calendar birthdays and workshops in morning message
-            if time_str == "08:55":  # Add oredering + birthday and workshop check to morning message
-                message += "\n\n🍕🍔🥗 Don't forget to order your food : https://iss-be-ethias.12order.eu/"
+            # Add ordering + birthday and workshop check to morning message
+            if time_str == "08:55":  
+                # Only show food ordering message if today is marked as "On Site"
+                try:
+                    if is_on_site_today(ical_url):
+                        message += "\n\n🍕🍔🥗 Don't forget to order your food before 09h30 !\nLink : https://iss-be-ethias.12order.eu/"
+                        logging.info("Added food ordering message for On Site day")
+                    else:
+                        logging.info("Skipping food ordering message - not an On Site day")
+                except Exception as e:
+                    logging.error(f"Error checking if today is On Site: {e}")
 
                 try:
                     calendar_birthday_message = get_birthday_message_if_today(ical_url)
