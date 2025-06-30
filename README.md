@@ -58,6 +58,8 @@ To run your newly built container you can use (e.g : `docker run -d --name disco
 
   • `/next-birthdays` - Check for birthdays in the next 7 days
 
+  • `/workshops` - Check for workshops on the next days
+
 ## Customizations
 
 You can modify the following parameters in the bot:

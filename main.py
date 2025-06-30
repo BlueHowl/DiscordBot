@@ -8,7 +8,7 @@ from datetime import datetime
 import pytz  # for timezone
 import google.generativeai as genai
 from sheets_utils import get_techtalk_message_if_today
-from calendar_utils import get_birthday_message_if_today, get_upcoming_birthdays
+from calendar_utils import get_birthday_message_if_today, get_upcoming_birthdays, get_workshop_message_if_today, get_upcoming_workshops
 import json
 
 # Load environment variables from .env file
@@ -198,8 +198,10 @@ async def send_scheduled_message(time_str):
                     logging.error(f"Error fetching tech talk for scheduled message: {e}")
                     message += "\n\n❌ Error fetching today's tech talk details."
             
-            # Check for calendar birthdays in morning message
-            if time_str == "09:00":  # Add birthday check to morning message
+            # Check for calendar birthdays and workshops in morning message
+            if time_str == "08:55":  # Add oredering + birthday and workshop check to morning message
+                message += "\n\n🍕🍔🥗 Don't forget to order your food : https://iss-be-ethias.12order.eu/"
+
                 try:
                     calendar_birthday_message = get_birthday_message_if_today(ical_url)
                     if calendar_birthday_message:
@@ -207,6 +209,14 @@ async def send_scheduled_message(time_str):
                         logging.info("Added calendar birthday message to scheduled message")
                 except Exception as e:
                     logging.error(f"Error adding calendar birthday to scheduled message: {e}")
+                
+                try:
+                    workshop_message = get_workshop_message_if_today(ical_url)
+                    if workshop_message:
+                        message += "\n\n" + workshop_message
+                        logging.info("Added workshop message to scheduled message")
+                except Exception as e:
+                    logging.error(f"Error adding workshop message to scheduled message: {e}")
             
             await channel.send(message)
             logging.info(f"✅ Message sent to {channel.name} ({channel.id})")
@@ -267,6 +277,22 @@ async def upcoming_birthdays(interaction: discord.Interaction):
     except Exception as e:
         logging.error(f"Error checking upcoming birthdays: {e}")
         await interaction.followup.send("❌ Error checking upcoming birthdays. Please try again later.")
+
+# Slash command /workshops to check for next workshops
+@bot.tree.command(name="workshops", description="Check for next workshops")
+async def workshops_today(interaction: discord.Interaction):
+    # Defer the response immediately to prevent timeout
+    await interaction.response.defer()
+    
+    try:
+        workshop_message = get_upcoming_workshops(ical_url)
+        if workshop_message:
+            await interaction.followup.send(workshop_message)
+        else:
+            await interaction.followup.send("🛠️ No workshops scheduled for next days!")
+    except Exception as e:
+        logging.error(f"Error checking next workshops: {e}")
+        await interaction.followup.send("❌ Error checking workshops. Please try again later.")
 
 # Function to calculate the time remaining until the next check-in or check-out
 def time_until_next_event():
