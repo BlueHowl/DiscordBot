@@ -7,8 +7,8 @@ import logging
 from datetime import datetime
 import pytz  # for timezone
 import google.generativeai as genai
-from sheets_utils import get_techtalk_message_if_today
-from calendar_utils import get_birthday_message_if_today, get_upcoming_birthdays, get_workshop_message_if_today, get_upcoming_workshops, is_on_site_today, is_at_home_today, is_class_day_today
+from services.sheets_service import SheetsService
+from services.calendar_service import CalendarService
 import json
 
 # Load environment variables from .env file
@@ -26,6 +26,12 @@ Mehdi=os.getenv("Mehdi")
 json_keyfile_path = "discordbot.json"
 sheet_url = "https://docs.google.com/spreadsheets/d/1FLktNFlFQCHLaEnw_o_0UJDcXnpYxg2ynoZeq_b-iBQ/edit?gid=0#gid=0"
 ical_url = "https://calendar.google.com/calendar/ical/c_702b545902f6d85b61594f7a0105d1de9cd94496bd643c6449641761047313bc%40group.calendar.google.com/public/basic.ics"
+
+# Initialize CalendarService
+calendar_service = CalendarService(ical_url)
+
+# Initialize SheetsService
+sheets_service = SheetsService(json_keyfile_path, sheet_url)
 
 #configure gemini
 genai.configure(api_key=GEMINI_API)  # Ton token API
@@ -142,7 +148,7 @@ async def send_scheduled_message(time_str):
         return
     
     # Check if today is a class day (On Site or At home)
-    if not is_class_day_today(ical_url):
+    if not calendar_service.is_class_day_today():
         logging.info("📅 No class today (neither On Site nor At home), no message sent.")
         return
     
@@ -196,7 +202,7 @@ async def send_scheduled_message(time_str):
                 message = ""
             if channel_id == CHANNEL_ID_AI and time_str == techtalk_time:
                 try:
-                    techTalkMessage = get_techtalk_message_if_today(json_keyfile_path, sheet_url)
+                    techTalkMessage = sheets_service.get_techtalk_message_if_today()
                     logging.info(techTalkMessage)
                     if techTalkMessage:
                         message += "\n\n" + techTalkMessage
@@ -208,7 +214,7 @@ async def send_scheduled_message(time_str):
             if time_str == "08:55":  
                 # Only show food ordering message if today is marked as "On Site"
                 try:
-                    if is_on_site_today(ical_url):
+                    if calendar_service.is_on_site_today():
                         message += "\n\n🍕🍔🥗 Don't forget to order your food before 09h30 !\nLink : https://iss-be-ethias.12order.eu/"
                         logging.info("Added food ordering message for On Site day")
                     else:
@@ -217,7 +223,7 @@ async def send_scheduled_message(time_str):
                     logging.error(f"Error checking if today is On Site: {e}")
 
                 try:
-                    calendar_birthday_message = get_birthday_message_if_today(ical_url)
+                    calendar_birthday_message = calendar_service.get_birthday_message_if_today()
                     if calendar_birthday_message:
                         message += "\n\n" + calendar_birthday_message
                         logging.info("Added calendar birthday message to scheduled message")
@@ -225,7 +231,7 @@ async def send_scheduled_message(time_str):
                     logging.error(f"Error adding calendar birthday to scheduled message: {e}")
                 
                 try:
-                    workshop_message = get_workshop_message_if_today(ical_url)
+                    workshop_message = calendar_service.get_workshop_message_if_today()
                     if workshop_message:
                         message += "\n\n" + workshop_message
                         logging.info("Added workshop message to scheduled message")
@@ -251,7 +257,7 @@ async def techtalk_today(interaction: discord.Interaction):
     await interaction.response.defer()
     
     try:
-        techtalk_message = get_techtalk_message_if_today(json_keyfile_path, sheet_url)
+        techtalk_message = sheets_service.get_techtalk_message_if_today()
         if techtalk_message:
             await interaction.followup.send(techtalk_message)
         else:
@@ -267,7 +273,7 @@ async def birthdays_today(interaction: discord.Interaction):
     await interaction.response.defer()
     
     try:
-        calendar_birthday_message = get_birthday_message_if_today(ical_url)
+        calendar_birthday_message = calendar_service.get_birthday_message_if_today()
         if calendar_birthday_message:
             await interaction.followup.send(calendar_birthday_message)
         else:
@@ -283,7 +289,7 @@ async def upcoming_birthdays(interaction: discord.Interaction):
     await interaction.response.defer()
     
     try:
-        upcoming_message = get_upcoming_birthdays(ical_url, days_ahead=7)
+        upcoming_message = calendar_service.get_upcoming_birthdays(days_ahead=7)
         if upcoming_message:
             await interaction.followup.send(upcoming_message)
         else:
@@ -299,7 +305,7 @@ async def workshops_today(interaction: discord.Interaction):
     await interaction.response.defer()
     
     try:
-        workshop_message = get_upcoming_workshops(ical_url)
+        workshop_message = calendar_service.get_upcoming_workshops()
         if workshop_message:
             await interaction.followup.send(workshop_message)
         else:
@@ -390,7 +396,7 @@ async def on_message(message):
                 time_remaining_message = time_until_next_event()
                 await message.channel.send(time_remaining_message)
             if any(keyword in message_lower for keyword in ["tech-talk", "tech talk"]):
-                techTalkMessage = get_techtalk_message_if_today(json_keyfile_path, sheet_url)
+                techTalkMessage = sheets_service.get_techtalk_message_if_today()
                 logging.info(techTalkMessage)
                 chat = get_chat_for_user(message.author.id)
                 prompt += f"Also, the use is asking about Tech talk so This is the tech talk scheduled today: {techTalkMessage}. Can you summarize or comment on it?"
