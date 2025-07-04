@@ -141,6 +141,17 @@ techtalk_time = "13:25"
 break_time = ["11:00", "15:00"]
 lunch_time = ["12:30"]
 
+async def refresh_calendar_daily():
+    """
+    Refresh the calendar data daily to ensure we have the latest events.
+    """
+    logging.info("🔄 Starting daily calendar refresh...")
+    success = calendar_service.refresh()
+    if success:
+        logging.info("Calendar refreshed successfully")
+    else:
+        logging.error("Failed to refresh calendar")
+
 async def send_scheduled_message(time_str):
 
     if datetime.now(pytz.timezone('Europe/Brussels')).weekday() >= 5:
@@ -201,43 +212,33 @@ async def send_scheduled_message(time_str):
                 logging.info("message empty")
                 message = ""
             if channel_id == CHANNEL_ID_AI and time_str == techtalk_time:
-                try:
-                    techTalkMessage = sheets_service.get_techtalk_message_if_today()
-                    logging.info(techTalkMessage)
-                    if techTalkMessage:
-                        message += "\n\n" + techTalkMessage
-                except Exception as e:
-                    logging.error(f"Error fetching tech talk for scheduled message: {e}")
-                    message += "\n\n❌ Error fetching today's tech talk details."
+                techTalkMessage = sheets_service.get_techtalk_message_if_today()
+                logging.info(techTalkMessage)
+                if techTalkMessage:
+                    message += "\n\n" + techTalkMessage
             
             # Add ordering + birthday and workshop check to morning message
             if time_str == "08:55":  
-                # Only show food ordering message if today is marked as "On Site"
-                try:
-                    if calendar_service.is_on_site_today():
-                        message += "\n\n🍕🍔🥗 Don't forget to order your food before 09h30 !\nLink : https://iss-be-ethias.12order.eu/"
-                        logging.info("Added food ordering message for On Site day")
-                    else:
-                        logging.info("Skipping food ordering message - not an On Site day")
-                except Exception as e:
-                    logging.error(f"Error checking if today is On Site: {e}")
 
-                try:
-                    calendar_birthday_message = calendar_service.get_birthday_message_if_today()
-                    if calendar_birthday_message:
-                        message += "\n\n" + calendar_birthday_message
-                        logging.info("Added calendar birthday message to scheduled message")
-                except Exception as e:
-                    logging.error(f"Error adding calendar birthday to scheduled message: {e}")
+                refresh_calendar_daily()  # Refresh calendar data on start of the day
+
+                # Only show food ordering message if today is marked as "On Site"
+                if calendar_service.is_on_site_today():
+                    message += "\n\n🍕🍔🥗 Don't forget to order your food before 09h30 !\nLink : https://iss-be-ethias.12order.eu/"
+                    logging.info("Added food ordering message for On Site day")
+                else:
+                    logging.info("Skipping food ordering message - not an On Site day")
+
+                calendar_birthday_message = calendar_service.get_birthday_message_if_today()
+                if calendar_birthday_message and calendar_birthday_message != "":
+                    message += "\n\n" + calendar_birthday_message
+                    logging.info("Added calendar birthday message to scheduled message")
                 
-                try:
-                    workshop_message = calendar_service.get_workshop_message_if_today()
-                    if workshop_message:
-                        message += "\n\n" + workshop_message
-                        logging.info("Added workshop message to scheduled message")
-                except Exception as e:
-                    logging.error(f"Error adding workshop message to scheduled message: {e}")
-            
+                workshop_message = calendar_service.get_workshop_message_if_today()
+                if workshop_message and workshop_message != "":
+                    message += "\n\n" + workshop_message
+                    logging.info("Added workshop message to scheduled message")
+                
             await channel.send(message)
             logging.info(f"✅ Message sent to {channel.name} ({channel.id})")
             
@@ -256,31 +257,23 @@ async def techtalk_today(interaction: discord.Interaction):
     # Defer the response immediately to prevent timeout
     await interaction.response.defer()
     
-    try:
-        techtalk_message = sheets_service.get_techtalk_message_if_today()
-        if techtalk_message:
-            await interaction.followup.send(techtalk_message)
-        else:
-            await interaction.followup.send("📅 No tech talk scheduled for today!")
-    except Exception as e:
-        logging.error(f"Error fetching tech talk: {e}")
-        await interaction.followup.send("❌ Error fetching tech talk. Please try again later.")
+    techtalk_message = sheets_service.get_techtalk_message_if_today()
+    if techtalk_message:
+        await interaction.followup.send(techtalk_message)
+    else:
+        await interaction.followup.send("📅 No tech talk scheduled for today!")
 
 # Slash command /happy-birthdays to check for today's birthdays
 @bot.tree.command(name="happy-birthdays", description="Check for birthdays today")
 async def birthdays_today(interaction: discord.Interaction):
     # Defer the response immediately to prevent timeout
     await interaction.response.defer()
-    
-    try:
-        calendar_birthday_message = calendar_service.get_birthday_message_if_today()
-        if calendar_birthday_message:
-            await interaction.followup.send(calendar_birthday_message)
-        else:
-            await interaction.followup.send("🎂 No birthdays today!")
-    except Exception as e:
-        logging.error(f"Error checking today's birthdays: {e}")
-        await interaction.followup.send("❌ Error checking birthdays. Please try again later.")
+   
+    calendar_birthday_message = calendar_service.get_birthday_message_if_today()
+    if calendar_birthday_message and calendar_birthday_message != "":
+        await interaction.followup.send(calendar_birthday_message)
+    else:
+        await interaction.followup.send("🎂 No birthdays today!")
 
 # Slash command /next-birthdays to check for upcoming birthdays
 @bot.tree.command(name="next-birthdays", description="Check for upcoming birthdays in the next 7 days")
@@ -288,15 +281,11 @@ async def upcoming_birthdays(interaction: discord.Interaction):
     # Defer the response immediately to prevent timeout
     await interaction.response.defer()
     
-    try:
-        upcoming_message = calendar_service.get_upcoming_birthdays(days_ahead=7)
-        if upcoming_message:
-            await interaction.followup.send(upcoming_message)
-        else:
-            await interaction.followup.send("📅 No upcoming birthdays in the next 7 days!")
-    except Exception as e:
-        logging.error(f"Error checking upcoming birthdays: {e}")
-        await interaction.followup.send("❌ Error checking upcoming birthdays. Please try again later.")
+    upcoming_message = calendar_service.get_upcoming_birthdays(days_ahead=7)
+    if upcoming_message and upcoming_message != "":
+        await interaction.followup.send(upcoming_message)
+    else:
+        await interaction.followup.send("📅 No upcoming birthdays in the next 7 days!")
 
 # Slash command /workshops to check for next workshops
 @bot.tree.command(name="workshops", description="Check for next workshops")
@@ -304,16 +293,12 @@ async def workshops_today(interaction: discord.Interaction):
     # Defer the response immediately to prevent timeout
     await interaction.response.defer()
     
-    try:
-        workshop_message = calendar_service.get_upcoming_workshops()
-        if workshop_message:
-            await interaction.followup.send(workshop_message)
-        else:
-            await interaction.followup.send("🛠️ No workshops scheduled for next days!")
-    except Exception as e:
-        logging.error(f"Error checking next workshops: {e}")
-        await interaction.followup.send("❌ Error checking workshops. Please try again later.")
-
+    workshop_message = calendar_service.get_upcoming_workshops()
+    if workshop_message and workshop_message != "":
+        await interaction.followup.send(workshop_message)
+    else:
+        await interaction.followup.send("🛠️ No workshops scheduled for next days!")
+    
 # Function to calculate the time remaining until the next check-in or check-out
 def time_until_next_event():
     current_time = datetime.now(pytz.timezone('Europe/Brussels'))
