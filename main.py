@@ -158,10 +158,11 @@ async def send_scheduled_message(time_str):
         logging.info("😴 Week-end detected, no message sent.")
         return
     
-    # Check if today is a class day (On Site or At home)
-    if not calendar_service.is_class_day_today():
-        logging.info("📅 No class today (neither On Site nor At home), no message sent.")
-        return
+    # Disabled because there are some inconsistencies with the exported .ics calendar
+    # # Check if today is a class day (On Site or At home)
+    # if not calendar_service.is_class_day_today():
+    #     logging.info("📅 No class today (neither On Site nor At home), no message sent.")
+    #     return
     
 
     logging.info(f"Trying to send scheduled message at {time_str}")
